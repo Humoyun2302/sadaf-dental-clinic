@@ -26,6 +26,28 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 // Serve admin.html at /admin
 app.get('/admin', (req, res) => res.sendFile(path.join(DIR, 'admin.html')));
 
+// ─── Login endpoint (public) ──────────────────────────────────────────────────
+app.post('/api/login', (req, res) => {
+  const { password } = req.body || {};
+  if (password === ADMIN_PASSWORD) {
+    res.json({ token: Buffer.from(ADMIN_PASSWORD).toString('base64') });
+  } else {
+    res.status(401).json({ error: 'Неверный пароль' });
+  }
+});
+
+// ─── Auth middleware (all /api/* except /api/login) ───────────────────────────
+app.use('/api', (req, res, next) => {
+  if (req.path === '/login') return next();
+  const auth = req.headers['authorization'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  const expected = Buffer.from(ADMIN_PASSWORD).toString('base64');
+  if (!token || token !== expected) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+});
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function toPublic(row) {

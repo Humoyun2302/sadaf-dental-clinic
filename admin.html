@@ -458,9 +458,12 @@ input, textarea, select { font-family: inherit; }
       <button class="deploy-btn" id="deploy-btn" onclick="deployToLive()">
         <span id="deploy-icon">🚀</span> Deploy to Live Site
       </button>
-      <a href="index.html" target="_blank" class="preview-btn" style="margin-top:8px;">
+      <a href="https://sadaf-doctor-bakhikhanov.netlify.app" target="_blank" class="preview-btn" style="margin-top:8px;">
         ↗ Открыть сайт
       </a>
+      <button onclick="logout()" style="margin-top:8px;width:100%;padding:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:rgba(255,255,255,.7);font-size:12px;cursor:pointer;">
+        Выйти
+      </button>
     </div>
   </aside>
 
@@ -649,7 +652,7 @@ input, textarea, select { font-family: inherit; }
           <div class="page-title">Главная страница</div>
           <div class="page-sub">Редактирование index.html — название клиники и карточки врачей</div>
         </div>
-        <a href="index.html" target="_blank" class="btn btn-secondary btn-sm">↗ Открыть</a>
+        <a href="https://sadaf-doctor-bakhikhanov.netlify.app" target="_blank" class="btn btn-secondary btn-sm">↗ Открыть</a>
       </div>
 
       <!-- Clinic meta -->
@@ -711,6 +714,26 @@ input, textarea, select { font-family: inherit; }
   </div>
 </div>
 
+<!-- Login screen -->
+<div id="login-screen" style="display:none; position:fixed; inset:0; background:var(--navy); z-index:9999; display:flex; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:16px; padding:40px 36px; width:340px; box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <div style="text-align:center; margin-bottom:28px;">
+      <div style="width:52px;height:52px;background:var(--accent);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:12px;">🦷</div>
+      <div style="font-weight:700;font-size:18px;color:var(--navy);">Sadaf Admin</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px;">Введите пароль для входа</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <input type="password" id="login-pw" placeholder="Пароль"
+        style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;outline:none;"
+        onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <div id="login-err" style="color:var(--danger);font-size:13px;margin-bottom:10px;display:none;"></div>
+    <button onclick="doLogin()" style="width:100%;padding:12px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
+      Войти
+    </button>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -719,6 +742,7 @@ let doctors = [];
 let currentEditSlug = null;
 let pendingDeleteSlug = null;
 let toastTimer = null;
+let authToken = sessionStorage.getItem('sadaf_token') || '';
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 function nav(page) {
@@ -746,11 +770,35 @@ function toast(msg, type = 'success') {
   toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const pw  = document.getElementById('login-pw').value;
+  const err = document.getElementById('login-err');
+  err.style.display = 'none';
+  try {
+    const res  = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: pw }) });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error || 'Ошибка'; err.style.display = 'block'; return; }
+    authToken = data.token;
+    sessionStorage.setItem('sadaf_token', authToken);
+    document.getElementById('login-screen').style.display = 'none';
+    loadDashboard();
+  } catch(e) { err.textContent = 'Ошибка соединения'; err.style.display = 'block'; }
+}
+
+function logout() {
+  authToken = '';
+  sessionStorage.removeItem('sadaf_token');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pw').value = '';
+}
+
 // ─── API helpers ──────────────────────────────────────────────────────────────
 async function api(method, url, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` } };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(url, opts);
+  if (res.status === 401) { logout(); throw new Error('Сессия истекла — войдите снова'); }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Server error');
   return data;
@@ -953,7 +1001,7 @@ function renderEditForm(d) {
         <div class="form-actions">
           <button class="btn btn-primary" onclick="saveDoctor('${d.slug}', ${!d.hasPhoto})">Сохранить изменения</button>
           <button class="btn btn-secondary" onclick="nav('doctors')">Отмена</button>
-          <a href="doctor-${d.slug}.html" target="_blank" class="btn btn-secondary" style="margin-left:auto;">↗ Открыть страницу</a>
+          <a href="https://sadaf-doctor-bakhikhanov.netlify.app/doctor-${d.slug}.html" target="_blank" class="btn btn-secondary" style="margin-left:auto;">↗ Открыть страницу</a>
         </div>
       </div>
     </div>
@@ -1205,7 +1253,12 @@ async function deployToLive() {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-loadDashboard();
+if (authToken) {
+  document.getElementById('login-screen').style.display = 'none';
+  loadDashboard();
+} else {
+  document.getElementById('login-screen').style.display = 'flex';
+}
 </script>
 </body>
 </html>
