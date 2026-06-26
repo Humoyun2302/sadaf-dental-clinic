@@ -17,25 +17,8 @@ const REPO_NAME      = 'sadaf-dental-clinic';
 
 app.use(express.json({ limit: '50mb' }));
 
-// ─── Health check (no auth) ──────────────────────────────────────────────────
+// ─── Health check ────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true }));
-
-// ─── Basic Auth ──────────────────────────────────────────────────────────────
-app.use((req, res, next) => {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Basic ')) {
-    res.set('WWW-Authenticate', 'Basic realm="Sadaf Admin"');
-    return res.status(401).send('Authentication required');
-  }
-  const decoded = Buffer.from(auth.slice(6), 'base64').toString();
-  const colon = decoded.indexOf(':');
-  const pass = decoded.slice(colon + 1);
-  if (pass !== ADMIN_PASSWORD) {
-    res.set('WWW-Authenticate', 'Basic realm="Sadaf Admin"');
-    return res.status(401).send('Invalid credentials');
-  }
-  next();
-});
 
 // Serve admin.html at /admin
 app.get('/admin', (req, res) => res.sendFile(path.join(DIR, 'admin.html')));
