@@ -83,6 +83,22 @@ input, textarea, select { font-family: inherit; }
   padding: 16px;
   border-top: 1px solid rgba(255,255,255,.1);
 }
+.deploy-btn {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+}
+.deploy-btn:hover   { background: var(--accent-d); }
+.deploy-btn:disabled { opacity: .6; cursor: not-allowed; }
+
 .preview-btn {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   width: 100%;
@@ -439,7 +455,10 @@ input, textarea, select { font-family: inherit; }
     </nav>
 
     <div class="sidebar-footer">
-      <a href="index.html" target="_blank" class="preview-btn">
+      <button class="deploy-btn" id="deploy-btn" onclick="deployToLive()">
+        <span id="deploy-icon">🚀</span> Deploy to Live Site
+      </button>
+      <a href="index.html" target="_blank" class="preview-btn" style="margin-top:8px;">
         ↗ Открыть сайт
       </a>
     </div>
@@ -1154,6 +1173,36 @@ function esc(s) {
 document.getElementById('delete-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeDeleteModal();
 });
+
+// ─── Deploy ───────────────────────────────────────────────────────────────────
+async function deployToLive() {
+  const btn  = document.getElementById('deploy-btn');
+  const icon = document.getElementById('deploy-icon');
+  btn.disabled = true;
+  icon.textContent = '⏳';
+  btn.childNodes[1].textContent = ' Deploying…';
+
+  try {
+    const data = await api('POST', '/api/deploy', { message: 'Admin update' });
+    icon.textContent = '✓';
+    btn.childNodes[1].textContent = ' Deployed!';
+    toast('Deployed to live site ✓', 'success');
+    setTimeout(() => {
+      icon.textContent = '🚀';
+      btn.childNodes[1].textContent = ' Deploy to Live Site';
+      btn.disabled = false;
+    }, 3000);
+  } catch(e) {
+    icon.textContent = '✕';
+    btn.childNodes[1].textContent = ' Deploy failed';
+    toast('Deploy error: ' + e.message, 'error');
+    setTimeout(() => {
+      icon.textContent = '🚀';
+      btn.childNodes[1].textContent = ' Deploy to Live Site';
+      btn.disabled = false;
+    }, 4000);
+  }
+}
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 loadDashboard();

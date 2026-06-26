@@ -2,3 +2,4 @@ node_modules/
 .netlify/plugins/node_modules/
 *.log
 npm-debug.log*
+.env

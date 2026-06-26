@@ -1,12 +1,41 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const https = require('https');
 
+const execAsync = promisify(exec);
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const DIR = __dirname;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sadaf2024';
+const GITHUB_TOKEN   = process.env.GITHUB_TOKEN   || '';
+const NETLIFY_HOOK   = process.env.NETLIFY_HOOK_URL || 'https://api.netlify.com/build_hooks/6a3e7057fc5b5c00c28a3261';
+const REPO_OWNER     = 'Humoyun2302';
+const REPO_NAME      = 'sadaf-dental-clinic';
 
 app.use(express.json({ limit: '50mb' }));
+
+// ─── Health check (no auth) ──────────────────────────────────────────────────
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+// ─── Basic Auth ──────────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Basic ')) {
+    res.set('WWW-Authenticate', 'Basic realm="Sadaf Admin"');
+    return res.status(401).send('Authentication required');
+  }
+  const decoded = Buffer.from(auth.slice(6), 'base64').toString();
+  const colon = decoded.indexOf(':');
+  const pass = decoded.slice(colon + 1);
+  if (pass !== ADMIN_PASSWORD) {
+    res.set('WWW-Authenticate', 'Basic realm="Sadaf Admin"');
+    return res.status(401).send('Invalid credentials');
+  }
+  next();
+});
 
 // Serve admin.html at /admin
 app.get('/admin', (req, res) => res.sendFile(path.join(DIR, 'admin.html')));
@@ -262,6 +291,65 @@ app.delete('/api/index-cards/:slug', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── Deploy API ──────────────────────────────────────────────────────────────
+
+app.post('/api/deploy', async (req, res) => {
+  const message = (req.body.message || 'Admin update').replace(/"/g, "'");
+  const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const steps = [];
+
+  try {
+    // Configure git remote with token if provided
+    if (GITHUB_TOKEN) {
+      await execAsync(
+        `git remote set-url origin https://${GITHUB_TOKEN}@github.com/${REPO_OWNER}/${REPO_NAME}.git`,
+        { cwd: DIR }
+      );
+      steps.push('Git remote configured');
+    }
+
+    // Stage all changes
+    await execAsync('git add -A', { cwd: DIR });
+    steps.push('Files staged');
+
+    // Commit (ignore "nothing to commit")
+    try {
+      const { stdout } = await execAsync(
+        `git commit -m "${message} [${timestamp}]"`,
+        { cwd: DIR }
+      );
+      steps.push('Committed: ' + stdout.trim().split('\n')[0]);
+    } catch (e) {
+      if (e.stdout && e.stdout.includes('nothing to commit')) {
+        steps.push('Nothing new to commit');
+      } else {
+        throw e;
+      }
+    }
+
+    // Push to GitHub
+    await execAsync('git push origin master', { cwd: DIR });
+    steps.push('Pushed to GitHub');
+
+    // Trigger Netlify build hook
+    if (NETLIFY_HOOK) {
+      await new Promise((resolve, reject) => {
+        const req = https.request(NETLIFY_HOOK, { method: 'POST' }, resolve);
+        req.on('error', reject);
+        req.end();
+      });
+      steps.push('Netlify build triggered');
+    }
+
+    res.json({ success: true, steps });
+  } catch (e) {
+    res.status(500).json({ error: e.message, steps });
+  }
+});
+
+// ─── Startup ─────────────────────────────────────────────────────────────────
+
 app.listen(PORT, () => {
-  console.log(`\n  Sadaf Admin Panel → http://localhost:${PORT}/admin\n`);
+  console.log(`\n  Sadaf Admin Panel → http://localhost:${PORT}/admin`);
+  console.log(`  Password: ${ADMIN_PASSWORD}\n`);
 });
