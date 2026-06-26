@@ -4,9 +4,17 @@
   "description": "Admin panel for Sadaf Dental Clinic website",
   "scripts": {
     "admin": "node admin-server.js",
-    "start": "node admin-server.js"
+    "start": "node admin-server.js",
+    "build": "node build.js",
+    "migrate": "node migrate-to-supabase.js",
+    "dev": "netlify dev"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "@supabase/supabase-js": "^2.108.2",
+    "express": "^4.19.2",
+    "serverless-http": "^4.0.0"
+  },
+  "devDependencies": {
+    "dotenv": "^17.4.2"
   }
 }

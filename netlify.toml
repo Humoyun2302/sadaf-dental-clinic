@@ -1,0 +1,24 @@
+[build]
+  command = "node build.js"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+
+# Redirect all /api/* calls to the serverless function
+[[redirects]]
+  from   = "/api/*"
+  to     = "/.netlify/functions/api"
+  status = 200
+
+# Serve /admin from admin.html in dist
+[[redirects]]
+  from   = "/admin"
+  to     = "/admin.html"
+  status = 200
+
+# SPA-style fallback: missing routes → index
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 404

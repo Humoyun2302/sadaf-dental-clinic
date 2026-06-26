@@ -1,329 +1,208 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const { exec } = require('child_process');
-const { promisify } = require('util');
-const https = require('https');
+if (process.env.NODE_ENV !== 'production') {
+  try { require('dotenv').config(); } catch (_) {}
+}
 
-const execAsync = promisify(exec);
-const app = express();
+const express = require('express');
+const path    = require('path');
+const https   = require('https');
+const { createClient } = require('@supabase/supabase-js');
+
+const app  = express();
 const PORT = process.env.PORT || 3001;
-const DIR = __dirname;
+const DIR  = __dirname;
+
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sadaf2024';
-const GITHUB_TOKEN   = process.env.GITHUB_TOKEN   || '';
 const NETLIFY_HOOK   = process.env.NETLIFY_HOOK_URL || 'https://api.netlify.com/build_hooks/6a3e7057fc5b5c00c28a3261';
-const REPO_OWNER     = 'Humoyun2302';
-const REPO_NAME      = 'sadaf-dental-clinic';
+const SUPABASE_URL   = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY   = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || '';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 app.use(express.json({ limit: '50mb' }));
 
-// ─── Health check ────────────────────────────────────────────────────────────
+// ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 // Serve admin.html at /admin
 app.get('/admin', (req, res) => res.sendFile(path.join(DIR, 'admin.html')));
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getDoctorSlugs() {
-  return fs.readdirSync(DIR)
-    .filter(f => f.startsWith('doctor-') && f.endsWith('.html'))
-    .map(f => f.slice(7, -5))
-    .sort();
+function toPublic(row) {
+  if (!row) return null;
+  return {
+    slug:         row.slug,
+    pageTitle:    row.page_title,
+    name:         row.name,
+    heroSubtitle: row.hero_subtitle,
+    initials:     row.initials,
+    hasPhoto:     row.has_photo || false,
+    fields:       row.fields || {}
+  };
 }
 
-function parseDoctorFile(slug) {
-  const html = fs.readFileSync(path.join(DIR, `doctor-${slug}.html`), 'utf8');
-  const data = { slug };
-
-  const titleM = html.match(/<title>([^<]+)<\/title>/);
-  if (titleM) data.pageTitle = titleM[1];
-
-  data.hasPhoto = html.includes('src="data:image/jpeg;base64,');
-
-  if (!data.hasPhoto) {
-    const h1M = html.match(/<h1>([^<]+)<\/h1>/);
-    if (h1M) data.name = h1M[1];
-    const subM = html.match(/<p class="hero-subtitle">([^<]+)<\/p>/);
-    if (subM) data.heroSubtitle = subM[1];
-    const avM = html.match(/<div class="avatar">([^<]+)<\/div>/);
-    if (avM) data.initials = avM[1];
-  } else {
-    data.name = data.pageTitle ? data.pageTitle.split(' — ')[0] : '';
-  }
-
-  data.fields = {};
-  const cardRx = /<p class="info-label">([^<]+)<\/p>\s*<p class="info-value"[^>]*>([\s\S]*?)<\/p>/g;
-  let m;
-  while ((m = cardRx.exec(html)) !== null) {
-    const label = m[1].trim();
-    const value = m[2]
-      .replace(/<\/span>/g, '\n')
-      .replace(/<[^>]+>/g, '')
-      .replace(/\n+/g, '\n')
-      .trim();
-    data.fields[label] = value;
-  }
-
-  return data;
+function fromPublic(body) {
+  const updates = {};
+  if (body.pageTitle    !== undefined) updates.page_title    = body.pageTitle;
+  if (body.name         !== undefined) updates.name          = body.name;
+  if (body.heroSubtitle !== undefined) updates.hero_subtitle = body.heroSubtitle;
+  if (body.initials     !== undefined) updates.initials      = body.initials;
+  if (body.hasPhoto     !== undefined) updates.has_photo     = body.hasPhoto;
+  if (body.photoData    !== undefined) updates.photo_data    = body.photoData;
+  if (body.fields       !== undefined) updates.fields        = body.fields;
+  return updates;
 }
 
-function updateDoctorFile(slug, updates) {
-  const filePath = path.join(DIR, `doctor-${slug}.html`);
-  let html = fs.readFileSync(filePath, 'utf8');
+// ─── Doctor API ───────────────────────────────────────────────────────────────
 
-  if (updates.pageTitle !== undefined) {
-    html = html.replace(/<title>[^<]+<\/title>/, `<title>${updates.pageTitle}</title>`);
-  }
-
-  if (!html.includes('src="data:image/jpeg;base64,')) {
-    if (updates.name !== undefined) {
-      html = html.replace(/<h1>[^<]+<\/h1>/, `<h1>${updates.name}</h1>`);
-    }
-    if (updates.heroSubtitle !== undefined) {
-      html = html.replace(/<p class="hero-subtitle">[^<]+<\/p>/, `<p class="hero-subtitle">${updates.heroSubtitle}</p>`);
-    }
-    if (updates.initials !== undefined) {
-      html = html.replace(/<div class="avatar">[^<]+<\/div>/, `<div class="avatar">${updates.initials}</div>`);
-    }
-  }
-
-  if (updates.fields) {
-    for (const [label, value] of Object.entries(updates.fields)) {
-      const esc = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const rx = new RegExp(
-        `(<p class="info-label">${esc}<\\/p>\\s*<p class="info-value"[^>]*>)[\\s\\S]*?(<\\/p>)`,
-        'g'
-      );
-      const lines = value.split('\n').filter(l => l.trim());
-      const newVal = lines.length > 1
-        ? `<span style="display:flex;flex-direction:column;gap:6px;">${lines.map(l => `<span>${l.trim()}</span>`).join('')}</span>`
-        : (lines[0] || value);
-      html = html.replace(rx, `$1${newVal}$2`);
-    }
-  }
-
-  fs.writeFileSync(filePath, html, 'utf8');
-}
-
-// ─── Doctor API ──────────────────────────────────────────────────────────────
-
-app.get('/api/doctors', (req, res) => {
+app.get('/api/doctors', async (req, res) => {
   try {
-    const doctors = getDoctorSlugs().map(slug => {
-      try { return parseDoctorFile(slug); }
-      catch (e) { return { slug, error: e.message }; }
-    });
-    res.json(doctors);
+    const { data, error } = await supabase
+      .from('doctors').select('*').order('sort_order').order('slug');
+    if (error) throw error;
+    res.json((data || []).map(toPublic));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/doctors/:slug', (req, res) => {
-  try { res.json(parseDoctorFile(req.params.slug)); }
-  catch (e) { res.status(404).json({ error: e.message }); }
+app.get('/api/doctors/:slug', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('doctors').select('*').eq('slug', req.params.slug).single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Doctor not found' });
+    res.json(toPublic(data));
+  } catch (e) { res.status(404).json({ error: e.message }); }
 });
 
-app.put('/api/doctors/:slug', (req, res) => {
+app.put('/api/doctors/:slug', async (req, res) => {
   try {
-    updateDoctorFile(req.params.slug, req.body);
+    const updates = fromPublic(req.body);
+    const { error } = await supabase
+      .from('doctors').update(updates).eq('slug', req.params.slug);
+    if (error) throw error;
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/doctors', (req, res) => {
+app.post('/api/doctors', async (req, res) => {
   try {
-    const { slug, ...data } = req.body;
+    const { slug, ...rest } = req.body;
     if (!slug || !/^[a-z0-9-]+$/.test(slug))
       return res.status(400).json({ error: 'Slug must be lowercase letters, numbers, hyphens only' });
 
-    const newPath = path.join(DIR, `doctor-${slug}.html`);
-    if (fs.existsSync(newPath))
-      return res.status(409).json({ error: 'A doctor with this slug already exists' });
-
-    // Use nurkhozhaev (no-photo) as template
-    const tpl = fs.readFileSync(path.join(DIR, 'doctor-nurkhozhaev.html'), 'utf8');
-    fs.writeFileSync(newPath, tpl, 'utf8');
-    updateDoctorFile(slug, data);
+    const row = { slug, ...fromPublic(rest) };
+    const { error } = await supabase.from('doctors').insert([row]);
+    if (error) {
+      if (error.code === '23505')
+        return res.status(409).json({ error: 'A doctor with this slug already exists' });
+      throw error;
+    }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/doctors/:slug', (req, res) => {
+app.delete('/api/doctors/:slug', async (req, res) => {
   try {
-    const fp = path.join(DIR, `doctor-${req.params.slug}.html`);
-    if (!fs.existsSync(fp)) return res.status(404).json({ error: 'File not found' });
-    fs.unlinkSync(fp);
+    const { error } = await supabase
+      .from('doctors').delete().eq('slug', req.params.slug);
+    if (error) throw error;
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ─── Index Page API ──────────────────────────────────────────────────────────
+// ─── Index Page Meta API ──────────────────────────────────────────────────────
 
-app.get('/api/index-meta', (req, res) => {
+app.get('/api/index-meta', async (req, res) => {
   try {
-    const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8');
-    const nameM = html.match(/<div class="clinic-name">([^<]+)<\/div>/);
-    const subM  = html.match(/<div class="clinic-sub">([^<]+)<\/div>/);
-    res.json({ clinicName: nameM?.[1] ?? '', clinicSub: subM?.[1] ?? '' });
+    const { data } = await supabase.from('clinic_info').select('*');
+    const info = {};
+    (data || []).forEach(r => { info[r.key] = r.value; });
+    res.json({
+      clinicName: info.clinic_name || 'Sadaf Dental Clinic',
+      clinicSub:  info.clinic_sub  || 'Наши специалисты — Ташкент'
+    });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/index-meta', (req, res) => {
+app.put('/api/index-meta', async (req, res) => {
   try {
     const { clinicName, clinicSub } = req.body;
-    let html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8');
+    const ops = [];
     if (clinicName !== undefined)
-      html = html.replace(/<div class="clinic-name">[^<]+<\/div>/, `<div class="clinic-name">${clinicName}</div>`);
+      ops.push(supabase.from('clinic_info').upsert({ key: 'clinic_name', value: clinicName }));
     if (clinicSub !== undefined)
-      html = html.replace(/<div class="clinic-sub">[^<]+<\/div>/, `<div class="clinic-sub">${clinicSub}</div>`);
-    fs.writeFileSync(path.join(DIR, 'index.html'), html, 'utf8');
+      ops.push(supabase.from('clinic_info').upsert({ key: 'clinic_sub',  value: clinicSub }));
+    const results = await Promise.all(ops);
+    const err = results.find(r => r.error);
+    if (err) throw err.error;
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/index-cards', (req, res) => {
+// ─── Index Cards API ──────────────────────────────────────────────────────────
+
+app.get('/api/index-cards', async (req, res) => {
   try {
-    const html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8');
-    const cards = [];
-    const rx = /<a class="doctor-card([^"]*)"[^>]*href="doctor-([^"]+)\.html"[^>]*>\s*<div class="avatar">([^<]*)<\/div>\s*<div class="doctor-info">\s*<div class="doctor-name">([^<]+)<\/div>\s*<div class="doctor-spec">([^<]+)<\/div>/g;
-    let m;
-    while ((m = rx.exec(html)) !== null) {
-      cards.push({
-        classes: m[1].trim(),
-        slug: m[2],
-        initials: m[3],
-        name: m[4],
-        spec: m[5],
-        noPhoto: m[1].includes('no-photo')
-      });
-    }
-    res.json(cards);
+    const { data, error } = await supabase
+      .from('doctors')
+      .select('slug, card_name, card_spec, card_initials, no_photo, sort_order')
+      .order('sort_order').order('slug');
+    if (error) throw error;
+    res.json((data || []).map(d => ({
+      slug:    d.slug,
+      name:    d.card_name,
+      spec:    d.card_spec,
+      initials: d.card_initials,
+      noPhoto: d.no_photo || false,
+      classes: d.no_photo ? 'no-photo' : ''
+    })));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/index-cards/:slug', (req, res) => {
+app.put('/api/index-cards/:slug', async (req, res) => {
   try {
     const { name, spec, initials, noPhoto } = req.body;
-    const slug = req.params.slug;
-    let html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8');
-
-    // Update card content
-    const contentRx = new RegExp(
-      `(<a class="doctor-card[^"]*"[^>]*href="doctor-${slug}\\.html"[^>]*>\\s*<div class="avatar">)[^<]*(<\\/div>\\s*<div class="doctor-info">\\s*<div class="doctor-name">)[^<]*(<\\/div>\\s*<div class="doctor-spec">)[^<]*(<\\/div>)`,
-      'g'
-    );
-    if (!contentRx.test(html))
-      return res.status(404).json({ error: 'Card not found in index.html' });
-
-    html = html.replace(contentRx, `$1${initials}$2${name}$3${spec}$4`);
-
-    // Update no-photo class
-    const classRx = new RegExp(`(<a class="doctor-card)([^"]*)(")([^>]*href="doctor-${slug}\\.html")`,'g');
-    html = html.replace(classRx, (_, a, cls, q, rest) => {
-      let newCls = cls.replace(/\s*no-photo\s*/g, '').trim();
-      if (noPhoto) newCls = (newCls + ' no-photo').trim();
-      return `${a}${newCls ? ' ' + newCls : ''}${q}${rest}`;
-    });
-
-    fs.writeFileSync(path.join(DIR, 'index.html'), html, 'utf8');
+    const { error } = await supabase.from('doctors').update({
+      card_name:     name,
+      card_spec:     spec,
+      card_initials: initials,
+      no_photo:      noPhoto
+    }).eq('slug', req.params.slug);
+    if (error) throw error;
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Add a new card to index.html
-app.post('/api/index-cards', (req, res) => {
+app.post('/api/index-cards', async (req, res) => {
   try {
     const { slug, name, spec, initials, noPhoto } = req.body;
-    let html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8');
-
-    const cardHtml = `    <a class="doctor-card${noPhoto ? ' no-photo' : ''}" href="doctor-${slug}.html">
-      <div class="avatar">${initials}</div>
-      <div class="doctor-info">
-        <div class="doctor-name">${name}</div>
-        <div class="doctor-spec">${spec}</div>
-      </div>
-      <span class="arrow">›</span>
-    </a>\n`;
-
-    html = html.replace(/(\s*<\/div>\s*\n\s*<div class="empty")/, `\n${cardHtml}$1`);
-
-    // Update doctor count
-    const total = (html.match(/<a class="doctor-card/g) || []).length;
-    const countStr = total === 1 ? '1 врач' : total < 5 ? `${total} врача` : `${total} врачей`;
-    html = html.replace(/<div class="count-label" id="count">[^<]+<\/div>/, `<div class="count-label" id="count">${countStr}</div>`);
-
-    fs.writeFileSync(path.join(DIR, 'index.html'), html, 'utf8');
+    const { error } = await supabase.from('doctors').update({
+      card_name: name, card_spec: spec, card_initials: initials, no_photo: noPhoto
+    }).eq('slug', slug);
+    if (error) throw error;
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Remove a card from index.html
-app.delete('/api/index-cards/:slug', (req, res) => {
-  try {
-    const slug = req.params.slug;
-    let html = fs.readFileSync(path.join(DIR, 'index.html'), 'utf8');
-    const cardRx = new RegExp(`\\s*<a class="doctor-card[^"]*"[^>]*href="doctor-${slug}\\.html"[^>]*>[\\s\\S]*?<\\/a>`, 'g');
-    html = html.replace(cardRx, '');
-
-    const total = (html.match(/<a class="doctor-card/g) || []).length;
-    const countStr = total === 1 ? '1 врач' : total < 5 ? `${total} врача` : `${total} врачей`;
-    html = html.replace(/<div class="count-label" id="count">[^<]+<\/div>/, `<div class="count-label" id="count">${countStr}</div>`);
-
-    fs.writeFileSync(path.join(DIR, 'index.html'), html, 'utf8');
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+app.delete('/api/index-cards/:slug', async (req, res) => {
+  res.json({ success: true }); // Handled by DELETE /api/doctors/:slug
 });
 
-// ─── Deploy API ──────────────────────────────────────────────────────────────
+// ─── Deploy API ───────────────────────────────────────────────────────────────
 
 app.post('/api/deploy', async (req, res) => {
-  const message = (req.body.message || 'Admin update').replace(/"/g, "'");
-  const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
   const steps = [];
-
   try {
-    // Configure git remote with token if provided
-    if (GITHUB_TOKEN) {
-      await execAsync(
-        `git remote set-url origin https://${GITHUB_TOKEN}@github.com/${REPO_OWNER}/${REPO_NAME}.git`,
-        { cwd: DIR }
-      );
-      steps.push('Git remote configured');
+    if (!NETLIFY_HOOK) {
+      return res.status(400).json({ error: 'NETLIFY_HOOK_URL not configured' });
     }
 
-    // Stage all changes
-    await execAsync('git add -A', { cwd: DIR });
-    steps.push('Files staged');
-
-    // Commit (ignore "nothing to commit")
-    try {
-      const { stdout } = await execAsync(
-        `git commit -m "${message} [${timestamp}]"`,
-        { cwd: DIR }
-      );
-      steps.push('Committed: ' + stdout.trim().split('\n')[0]);
-    } catch (e) {
-      if (e.stdout && e.stdout.includes('nothing to commit')) {
-        steps.push('Nothing new to commit');
-      } else {
-        throw e;
-      }
-    }
-
-    // Push to GitHub
-    await execAsync('git push origin master', { cwd: DIR });
-    steps.push('Pushed to GitHub');
-
-    // Trigger Netlify build hook
-    if (NETLIFY_HOOK) {
-      await new Promise((resolve, reject) => {
-        const req = https.request(NETLIFY_HOOK, { method: 'POST' }, resolve);
-        req.on('error', reject);
-        req.end();
-      });
-      steps.push('Netlify build triggered');
-    }
-
+    await new Promise((resolve, reject) => {
+      const hookReq = https.request(NETLIFY_HOOK, { method: 'POST' }, resolve);
+      hookReq.on('error', reject);
+      hookReq.end();
+    });
+    steps.push('Netlify build triggered — site will update in ~1 minute');
     res.json({ success: true, steps });
   } catch (e) {
     res.status(500).json({ error: e.message, steps });
@@ -332,7 +211,12 @@ app.post('/api/deploy', async (req, res) => {
 
 // ─── Startup ─────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
-  console.log(`\n  Sadaf Admin Panel → http://localhost:${PORT}/admin`);
-  console.log(`  Password: ${ADMIN_PASSWORD}\n`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n  Sadaf Admin Panel → http://localhost:${PORT}/admin`);
+    console.log(`  Password: ${ADMIN_PASSWORD}`);
+    console.log(`  Supabase: ${SUPABASE_URL ? '✓ connected' : '✗ not configured'}\n`);
+  });
+}
+
+module.exports = app;
