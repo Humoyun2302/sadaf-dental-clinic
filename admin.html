@@ -743,6 +743,7 @@ let currentEditSlug = null;
 let pendingDeleteSlug = null;
 let toastTimer = null;
 let authToken = sessionStorage.getItem('sadaf_token') || '';
+let deployDebounceTimer = null;
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 function nav(page) {
@@ -802,6 +803,23 @@ async function api(method, url, body) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Server error');
   return data;
+}
+
+// ─── Auto-deploy after save ───────────────────────────────────────────────────
+function scheduleAutoDeploy() {
+  clearTimeout(deployDebounceTimer);
+  const btn  = document.getElementById('deploy-btn');
+  const icon = document.getElementById('deploy-icon');
+  if (btn) { btn.style.opacity = '0.7'; icon.textContent = '⏳'; }
+  deployDebounceTimer = setTimeout(async () => {
+    try {
+      await api('POST', '/api/deploy', { message: 'Auto-publish after save' });
+      if (icon) icon.textContent = '✓';
+      setTimeout(() => { if (icon) { icon.textContent = '🚀'; btn.style.opacity = '1'; } }, 4000);
+    } catch(_) {
+      if (icon) { icon.textContent = '🚀'; btn.style.opacity = '1'; }
+    }
+  }, 4000); // Wait 4 s in case user saves multiple things
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -1040,7 +1058,8 @@ async function saveDoctor(slug, hasHero) {
       const fresh = await api('GET', `/api/doctors/${slug}`);
       doctors[idx] = fresh;
     }
-    toast('Изменения сохранены ✓');
+    toast('Сохранено ✓ — сайт обновится через ~1 мин');
+    scheduleAutoDeploy();
   } catch(e) {
     toast('Ошибка: ' + e.message, 'error');
   }
@@ -1094,7 +1113,8 @@ async function createDoctor() {
       });
     }
 
-    toast('Врач создан ✓');
+    toast('Врач создан ✓ — сайт обновится через ~1 мин');
+    scheduleAutoDeploy();
     await fetchDoctors();
     openEdit(slug);
   } catch(e) {
@@ -1189,7 +1209,8 @@ async function saveIndexMeta() {
       clinicName: document.getElementById('meta-name').value,
       clinicSub:  document.getElementById('meta-sub').value
     });
-    toast('Название клиники сохранено ✓');
+    toast('Название клиники сохранено ✓ — сайт обновится через ~1 мин');
+    scheduleAutoDeploy();
   } catch(e) {
     toast('Ошибка: ' + e.message, 'error');
   }
@@ -1202,7 +1223,8 @@ async function saveIndexCard(slug) {
   const noPhoto  = document.getElementById(`ic-np-${slug}`).checked;
   try {
     await api('PUT', `/api/index-cards/${slug}`, { name, spec, initials: initials_, noPhoto });
-    toast(`Карточка «${slug}» сохранена ✓`);
+    toast(`Карточка «${slug}» сохранена ✓ — сайт обновится через ~1 мин`);
+    scheduleAutoDeploy();
   } catch(e) {
     toast('Ошибка: ' + e.message, 'error');
   }
