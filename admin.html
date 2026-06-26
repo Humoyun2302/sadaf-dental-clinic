@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sadaf Admin Panel</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:      #0D3B6E;
+  --navy-l:    #154a87;
+  --accent:    #2ABFBF;
+  --accent-d:  #1fa8a8;
+  --bg:        #F0F4F8;
+  --surface:   #FFFFFF;
+  --border:    #E2E8F0;
+  --text:      #1A2230;
+  --muted:     #64748B;
+  --danger:    #EF4444;
+  --warn:      #F59E0B;
+  --success:   #10B981;
+  --radius:    12px;
+  --shadow:    0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.05);
+}
+
+body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: inherit; }
+input, textarea, select { font-family: inherit; }
+
+/* ── Layout ── */
+.layout { display: flex; height: 100vh; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--navy);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-brand {
+  padding: 24px 20px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+}
+.brand-icon {
+  width: 40px; height: 40px;
+  background: var(--accent);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.brand-name { color: #fff; font-size: 14px; font-weight: 700; line-height: 1.3; }
+.brand-sub  { color: rgba(255,255,255,.5); font-size: 11px; }
+
+.sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: rgba(255,255,255,.65);
+  font-size: 13.5px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: background .15s, color .15s;
+}
+.nav-item:hover   { background: rgba(255,255,255,.07); color: #fff; }
+.nav-item.active  { background: var(--accent); color: #fff; }
+.nav-item .ni     { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-sep { height: 1px; background: rgba(255,255,255,.1); margin: 8px 0; }
+
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid rgba(255,255,255,.1);
+}
+.preview-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%;
+  padding: 9px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.7);
+  font-size: 12.5px;
+  font-weight: 500;
+  border: 1px solid rgba(255,255,255,.12);
+  transition: background .15s, color .15s;
+}
+.preview-btn:hover { background: rgba(255,255,255,.14); color: #fff; }
+
+/* ── Main ── */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-wrap { display: none; padding: 32px 36px; flex: 1; flex-direction: column; }
+.page-wrap.active { display: flex; }
+
+.page-header { margin-bottom: 28px; }
+.page-title { font-size: 22px; font-weight: 700; color: var(--text); }
+.page-sub   { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* ── Cards ── */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.card-header {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-size: 14px; font-weight: 600; }
+.card-body  { padding: 22px; }
+
+/* ── Stats ── */
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+}
+.stat-value { font-size: 30px; font-weight: 800; color: var(--navy); }
+.stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 500; }
+.stat-card.accent .stat-value { color: var(--accent-d); }
+.stat-card.warn   .stat-value { color: var(--warn); }
+
+/* ── Doctor table ── */
+.toolbar {
+  display: flex; gap: 12px; align-items: center; margin-bottom: 18px;
+}
+.search-box {
+  flex: 1;
+  position: relative;
+}
+.search-box input {
+  width: 100%;
+  padding: 9px 14px 9px 38px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13.5px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: border-color .2s;
+}
+.search-box input:focus { border-color: var(--accent); }
+.search-box::before {
+  content: '⌕';
+  position: absolute;
+  left: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 18px;
+  pointer-events: none;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  border: none;
+  transition: background .15s, transform .1s;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary   { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-d); }
+.btn-secondary { background: var(--border); color: var(--text); }
+.btn-secondary:hover { background: #d0d9e4; }
+.btn-danger    { background: #FEE2E2; color: var(--danger); }
+.btn-danger:hover { background: #FECACA; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-icon { padding: 6px 8px; }
+
+.doctor-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.doctor-table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 1.5px solid var(--border);
+  white-space: nowrap;
+}
+.doctor-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.doctor-table tr:last-child td { border-bottom: none; }
+.doctor-table tbody tr:hover td { background: #F8FAFC; }
+.doctor-table .dr-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1B5EA6, var(--accent));
+  color: #fff;
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.doctor-table .dr-avatar.no-photo {
+  background: linear-gradient(135deg, var(--warn), #fbbf24);
+}
+.doctor-table .dr-cell { display: flex; align-items: center; gap: 12px; }
+.doctor-table .dr-name  { font-weight: 600; color: var(--text); }
+.doctor-table .dr-slug  { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+}
+.badge-photo { background: #D1FAE5; color: #065F46; }
+.badge-nophoto { background: #FEF3C7; color: #92400E; }
+.row-actions { display: flex; gap: 6px; }
+
+/* ── Form ── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.form-full { grid-column: 1 / -1; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.form-input, .form-textarea, .form-select {
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  transition: border-color .2s;
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--accent); }
+.form-textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+.form-hint { font-size: 11.5px; color: var(--muted); }
+
+.form-section { margin-bottom: 28px; }
+.form-section-title {
+  font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.form-actions {
+  display: flex; gap: 10px; align-items: center;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  margin-top: 20px;
+}
+
+/* ── Index page editor ── */
+.index-cards-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.index-cards-table th {
+  text-align: left; padding: 8px 10px;
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .04em;
+  border-bottom: 1.5px solid var(--border);
+}
+.index-cards-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.index-cards-table tr:last-child td { border-bottom: none; }
+.index-cards-table input {
+  width: 100%; padding: 6px 10px;
+  border: 1.5px solid var(--border); border-radius: 6px;
+  font-size: 13px; color: var(--text); background: var(--surface);
+  outline: none;
+}
+.index-cards-table input:focus { border-color: var(--accent); }
+.toggle-wrap { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0;
+  background: var(--border);
+  border-radius: 20px;
+  transition: background .2s;
+  cursor: pointer;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  left: 3px; top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform .2s;
+}
+.toggle input:checked + .toggle-slider { background: var(--warn); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+/* ── Loading spinner ── */
+.spinner {
+  width: 28px; height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-wrap { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 48px; color: var(--muted); }
+
+/* ── Empty state ── */
+.empty-state { text-align: center; padding: 64px 24px; color: var(--muted); }
+.empty-state .ei { font-size: 40px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 28px; right: 28px;
+  background: var(--text);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,.2);
+  transform: translateY(80px);
+  opacity: 0;
+  transition: transform .3s, opacity .3s;
+  z-index: 9999;
+  max-width: 360px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { background: var(--success); }
+.toast.error   { background: var(--danger); }
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+.modal {
+  background: var(--surface);
+  border-radius: 16px;
+  width: 480px; max-width: calc(100vw - 40px);
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  transform: scale(.96);
+  transition: transform .2s;
+}
+.modal-overlay.open .modal { transform: scale(1); }
+.modal-header {
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close { background: none; border: none; font-size: 20px; color: var(--muted); line-height: 1; padding: 2px 6px; border-radius: 6px; }
+.modal-close:hover { background: var(--border); color: var(--text); }
+.modal-body    { padding: 24px; }
+.modal-footer  { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ── Dashboard quick-list ── */
+.quick-list { display: flex; flex-direction: column; gap: 1px; }
+.quick-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  transition: background .15s;
+  cursor: pointer;
+}
+.quick-item:hover { background: var(--bg); }
+.quick-item .qi-av {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(135deg, #1B5EA6, var(--accent));
+  color: #fff; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.quick-item .qi-av.no-photo { background: linear-gradient(135deg, var(--warn), #fbbf24); }
+.quick-item .qi-name { font-size: 13px; font-weight: 600; }
+.quick-item .qi-spec { font-size: 12px; color: var(--muted); }
+.quick-item .qi-arrow { margin-left: auto; color: var(--muted); }
+
+/* ── Breadcrumb ── */
+.breadcrumb {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--muted);
+  margin-bottom: 20px;
+}
+.breadcrumb a { color: var(--accent); cursor: pointer; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb span { color: var(--muted); }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #c0cad6; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── Sidebar ────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🦷</div>
+      <div>
+        <div class="brand-name">Sadaf Admin</div>
+        <div class="brand-sub">Dental Clinic</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="dashboard" onclick="nav('dashboard')">
+        <span class="ni">◫</span> Dashboard
+      </button>
+      <button class="nav-item" data-page="doctors" onclick="nav('doctors')">
+        <span class="ni">⚕</span> Врачи
+      </button>
+      <button class="nav-item" data-page="index-page" onclick="nav('index-page')">
+        <span class="ni">⊞</span> Главная страница
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="index.html" target="_blank" class="preview-btn">
+        ↗ Открыть сайт
+      </a>
+    </div>
+  </aside>
+
+  <!-- ── Main ───────────────────────────────────── -->
+  <main class="main">
+
+    <!-- Dashboard -->
+    <div id="page-dashboard" class="page-wrap active">
+      <div class="page-header">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Добро пожаловать в панель управления Sadaf Dental Clinic</div>
+      </div>
+
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Всего врачей</div>
+        </div>
+        <div class="stat-card accent">
+          <div class="stat-value" id="stat-photo">—</div>
+          <div class="stat-label">С фотографией</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="stat-value" id="stat-nophoto">—</div>
+          <div class="stat-label">Без фотографии</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Список врачей</div>
+          <button class="btn btn-primary btn-sm" onclick="nav('doctors')">Все врачи →</button>
+        </div>
+        <div class="card-body" style="padding: 8px 6px;" id="dash-list">
+          <div class="loading-wrap"><div class="spinner"></div><span>Загрузка…</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Doctors list -->
+    <div id="page-doctors" class="page-wrap">
+      <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between;">
+        <div>
+          <div class="page-title">Врачи</div>
+          <div class="page-sub">Управление профилями врачей</div>
+        </div>
+        <button class="btn btn-primary" onclick="nav('add-doctor')">+ Добавить врача</button>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-box">
+          <input type="text" placeholder="Поиск по имени, специализации…" id="doctor-search" oninput="filterTable()">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body" style="padding: 0;">
+          <div id="doctor-table-wrap">
+            <div class="loading-wrap"><div class="spinner"></div><span>Загрузка…</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit doctor -->
+    <div id="page-edit-doctor" class="page-wrap">
+      <div class="breadcrumb">
+        <a onclick="nav('doctors')">Врачи</a>
+        <span>/</span>
+        <span id="edit-breadcrumb">Редактировать</span>
+      </div>
+      <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between;">
+        <div>
+          <div class="page-title" id="edit-page-title">Редактировать врача</div>
+          <div class="page-sub" id="edit-page-sub"></div>
+        </div>
+        <a id="edit-preview-link" href="#" target="_blank" class="btn btn-secondary btn-sm">↗ Открыть страницу</a>
+      </div>
+
+      <div id="edit-form-wrap">
+        <div class="loading-wrap"><div class="spinner"></div><span>Загрузка…</span></div>
+      </div>
+    </div>
+
+    <!-- Add doctor -->
+    <div id="page-add-doctor" class="page-wrap">
+      <div class="breadcrumb">
+        <a onclick="nav('doctors')">Врачи</a>
+        <span>/</span>
+        <span>Новый врач</span>
+      </div>
+      <div class="page-header">
+        <div class="page-title">Добавить врача</div>
+        <div class="page-sub">Создать новую страницу врача (без фото)</div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="form-section">
+            <div class="form-section-title">Идентификатор</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Slug (имя файла) *</label>
+                <input class="form-input" id="new-slug" placeholder="ivanov (только латиница, цифры, дефис)" oninput="updateNewSlugPreview()">
+                <span class="form-hint" id="new-slug-preview">Файл: doctor-???.html</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Инициалы (аватар) *</label>
+                <input class="form-input" id="new-initials" placeholder="ИИ" maxlength="3">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Основная информация</div>
+            <div class="form-grid">
+              <div class="form-group form-full">
+                <label class="form-label">Полное имя *</label>
+                <input class="form-input" id="new-name" placeholder="Иванов Иван Иванович">
+              </div>
+              <div class="form-group form-full">
+                <label class="form-label">Подзаголовок в шапке</label>
+                <input class="form-input" id="new-hero-subtitle" placeholder="Врач-стоматолог">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Карточки информации</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Должность</label>
+                <input class="form-input" id="new-f-dolzhnost" placeholder="Врач-стоматолог">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Специализация</label>
+                <input class="form-input" id="new-f-spec" placeholder="Терапия, хирургия">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Общий стаж работы</label>
+                <input class="form-input" id="new-f-stazh" placeholder="5 лет">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Место работы</label>
+                <input class="form-input" id="new-f-mesto" placeholder="Sadaf Dental Clinic">
+              </div>
+              <div class="form-group form-full">
+                <label class="form-label">Образование</label>
+                <textarea class="form-textarea" id="new-f-edu" placeholder="Каждое учебное заведение — с новой строки"></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Учетная статья</label>
+                <input class="form-input" id="new-f-category" placeholder="1-я категория">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Главная страница (index.html)</div>
+            <div class="form-grid">
+              <div class="form-group form-full">
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                  <input type="checkbox" id="new-add-to-index" checked style="width:16px;height:16px;accent-color:var(--accent);">
+                  <span class="form-label" style="margin:0;">Добавить карточку на главную страницу</span>
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Специализация для карточки</label>
+                <input class="form-input" id="new-card-spec" placeholder="Врач-стоматолог">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" onclick="createDoctor()">Создать врача</button>
+            <button class="btn btn-secondary" onclick="nav('doctors')">Отмена</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Index page editor -->
+    <div id="page-index-page" class="page-wrap">
+      <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between;">
+        <div>
+          <div class="page-title">Главная страница</div>
+          <div class="page-sub">Редактирование index.html — название клиники и карточки врачей</div>
+        </div>
+        <a href="index.html" target="_blank" class="btn btn-secondary btn-sm">↗ Открыть</a>
+      </div>
+
+      <!-- Clinic meta -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <div class="card-title">Информация о клинике</div>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Название клиники</label>
+              <input class="form-input" id="meta-name" placeholder="Sadaf Dental Clinic">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Подзаголовок</label>
+              <input class="form-input" id="meta-sub" placeholder="Наши специалисты — Ташкент">
+            </div>
+          </div>
+          <div class="form-actions" style="margin-top: 16px; padding-top: 16px;">
+            <button class="btn btn-primary btn-sm" onclick="saveIndexMeta()">Сохранить</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Doctor cards -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Карточки врачей</div>
+          <div class="form-hint">Изменения сохраняются построчно — нажмите кнопку в строке</div>
+        </div>
+        <div class="card-body" style="padding: 0; overflow-x: auto;">
+          <div id="index-cards-wrap">
+            <div class="loading-wrap"><div class="spinner"></div><span>Загрузка…</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Удалить врача?</div>
+      <button class="modal-close" onclick="closeDeleteModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px; color: var(--muted); line-height:1.6;">
+        Вы собираетесь удалить файл <strong id="delete-slug-label"></strong>.
+        Это действие <strong>необратимо</strong>.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeDeleteModal()">Отмена</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDelete()">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let doctors = [];
+let currentEditSlug = null;
+let pendingDeleteSlug = null;
+let toastTimer = null;
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.page-wrap').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+
+  const el = document.getElementById(`page-${page}`);
+  if (el) el.classList.add('active');
+
+  const nb = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (nb) nb.classList.add('active');
+
+  // Lazy-load data
+  if (page === 'dashboard')  loadDashboard();
+  if (page === 'doctors')    loadDoctorsPage();
+  if (page === 'index-page') loadIndexPage();
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// ─── API helpers ──────────────────────────────────────────────────────────────
+async function api(method, url, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Server error');
+  return data;
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  if (!doctors.length) await fetchDoctors();
+  renderDashStats();
+  renderDashList();
+}
+
+function renderDashStats() {
+  const withPhoto = doctors.filter(d => d.hasPhoto).length;
+  const noPhoto   = doctors.filter(d => !d.hasPhoto).length;
+  document.getElementById('stat-total').textContent   = doctors.length;
+  document.getElementById('stat-photo').textContent   = withPhoto;
+  document.getElementById('stat-nophoto').textContent = noPhoto;
+}
+
+function renderDashList() {
+  const el = document.getElementById('dash-list');
+  if (!doctors.length) {
+    el.innerHTML = `<div class="empty-state"><div class="ei">👨‍⚕️</div><p>Врачи не найдены</p></div>`;
+    return;
+  }
+  el.innerHTML = doctors.slice(0, 8).map(d => `
+    <div class="quick-item" onclick="openEdit('${d.slug}')">
+      <div class="qi-av${d.hasPhoto ? '' : ' no-photo'}">${d.initials || initials(d.name)}</div>
+      <div>
+        <div class="qi-name">${d.name || d.slug}</div>
+        <div class="qi-spec">${d.fields?.['Должность'] || d.fields?.['Специализация'] || '—'}</div>
+      </div>
+      <div class="qi-arrow">›</div>
+    </div>
+  `).join('') + (doctors.length > 8 ? `<div style="padding:10px 16px; font-size:12px; color:var(--muted);">И ещё ${doctors.length - 8} врачей…</div>` : '');
+}
+
+// ─── Doctors list ─────────────────────────────────────────────────────────────
+async function fetchDoctors() {
+  try {
+    doctors = await api('GET', '/api/doctors');
+  } catch(e) {
+    toast('Ошибка загрузки данных: ' + e.message, 'error');
+    doctors = [];
+  }
+}
+
+async function loadDoctorsPage() {
+  document.getElementById('doctor-table-wrap').innerHTML = `<div class="loading-wrap"><div class="spinner"></div><span>Загрузка…</span></div>`;
+  await fetchDoctors();
+  renderDoctorTable(doctors);
+}
+
+function renderDoctorTable(list) {
+  const wrap = document.getElementById('doctor-table-wrap');
+  if (!list.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="ei">👨‍⚕️</div><p>Врачи не найдены</p></div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <table class="doctor-table">
+      <thead>
+        <tr>
+          <th>Врач</th>
+          <th>Должность</th>
+          <th>Специализация</th>
+          <th>Тип</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${list.map(d => `
+          <tr>
+            <td>
+              <div class="dr-cell">
+                <div class="dr-avatar${d.hasPhoto ? '' : ' no-photo'}">${d.initials || initials(d.name)}</div>
+                <div>
+                  <div class="dr-name">${d.name || '—'}</div>
+                  <div class="dr-slug">${d.slug}</div>
+                </div>
+              </div>
+            </td>
+            <td>${d.fields?.['Должность'] || '—'}</td>
+            <td>${d.fields?.['Специализация'] || '—'}</td>
+            <td>
+              <span class="badge ${d.hasPhoto ? 'badge-photo' : 'badge-nophoto'}">
+                ${d.hasPhoto ? '📷 С фото' : '○ Без фото'}
+              </span>
+            </td>
+            <td>
+              <div class="row-actions">
+                <button class="btn btn-secondary btn-sm" onclick="openEdit('${d.slug}')">✏ Изменить</button>
+                <a href="doctor-${d.slug}.html" target="_blank" class="btn btn-secondary btn-sm btn-icon" title="Открыть страницу">↗</a>
+                <button class="btn btn-danger btn-sm btn-icon" onclick="openDeleteModal('${d.slug}')" title="Удалить">✕</button>
+              </div>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function filterTable() {
+  const q = document.getElementById('doctor-search').value.toLowerCase();
+  const filtered = doctors.filter(d =>
+    (d.name || '').toLowerCase().includes(q) ||
+    (d.slug || '').toLowerCase().includes(q) ||
+    (d.fields?.['Должность'] || '').toLowerCase().includes(q) ||
+    (d.fields?.['Специализация'] || '').toLowerCase().includes(q)
+  );
+  renderDoctorTable(filtered);
+}
+
+// ─── Edit doctor ──────────────────────────────────────────────────────────────
+async function openEdit(slug) {
+  currentEditSlug = slug;
+  nav('edit-doctor');
+
+  document.getElementById('edit-breadcrumb').textContent = slug;
+  document.getElementById('edit-page-title').textContent = 'Загрузка…';
+  document.getElementById('edit-page-sub').textContent = '';
+  document.getElementById('edit-preview-link').href = `doctor-${slug}.html`;
+  document.getElementById('edit-form-wrap').innerHTML = `<div class="loading-wrap"><div class="spinner"></div><span>Загрузка…</span></div>`;
+
+  try {
+    const d = await api('GET', `/api/doctors/${slug}`);
+    renderEditForm(d);
+  } catch(e) {
+    document.getElementById('edit-form-wrap').innerHTML = `<div class="empty-state"><div class="ei">⚠</div><p>${e.message}</p></div>`;
+  }
+}
+
+function renderEditForm(d) {
+  document.getElementById('edit-page-title').textContent = d.name || d.slug;
+  document.getElementById('edit-page-sub').textContent = `doctor-${d.slug}.html`;
+
+  // Build dynamic field rows
+  const fieldEntries = Object.entries(d.fields || {});
+  const fieldRows = fieldEntries.map(([label, value]) => {
+    const isLong = value.includes('\n') || value.length > 60;
+    const id = `ef-${label}`;
+    return `
+      <div class="form-group${isLong ? ' form-full' : ''}">
+        <label class="form-label">${label}</label>
+        ${isLong
+          ? `<textarea class="form-textarea" id="${id}" rows="3">${esc(value)}</textarea>`
+          : `<input class="form-input" id="${id}" value="${esc(value)}">`
+        }
+      </div>
+    `;
+  }).join('');
+
+  const noPhotoSection = !d.hasPhoto ? `
+    <div class="form-section">
+      <div class="form-section-title">Шапка страницы (Hero)</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Инициалы (аватар)</label>
+          <input class="form-input" id="ef-initials" value="${esc(d.initials || '')}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Подзаголовок</label>
+          <input class="form-input" id="ef-heroSubtitle" value="${esc(d.heroSubtitle || '')}">
+        </div>
+      </div>
+    </div>
+  ` : `<div class="form-section">
+    <div class="form-section-title">Шапка страницы</div>
+    <p style="font-size:13px;color:var(--muted);">Страница содержит встроенную фотографию. Шапка редактируется через заголовок страницы.</p>
+  </div>`;
+
+  document.getElementById('edit-form-wrap').innerHTML = `
+    <div class="card">
+      <div class="card-body">
+        <div class="form-section">
+          <div class="form-section-title">Основная информация</div>
+          <div class="form-grid">
+            <div class="form-group form-full">
+              <label class="form-label">Полное имя</label>
+              <input class="form-input" id="ef-name" value="${esc(d.name || '')}">
+            </div>
+            <div class="form-group form-full">
+              <label class="form-label">Заголовок страницы (title)</label>
+              <input class="form-input" id="ef-pageTitle" value="${esc(d.pageTitle || '')}">
+            </div>
+          </div>
+        </div>
+
+        ${noPhotoSection}
+
+        <div class="form-section">
+          <div class="form-section-title">Информационные карточки</div>
+          <div class="form-grid">
+            ${fieldRows}
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="saveDoctor('${d.slug}', ${!d.hasPhoto})">Сохранить изменения</button>
+          <button class="btn btn-secondary" onclick="nav('doctors')">Отмена</button>
+          <a href="doctor-${d.slug}.html" target="_blank" class="btn btn-secondary" style="margin-left:auto;">↗ Открыть страницу</a>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function saveDoctor(slug, hasHero) {
+  const updates = {};
+
+  const nameEl = document.getElementById('ef-name');
+  if (nameEl) updates.name = nameEl.value;
+
+  const titleEl = document.getElementById('ef-pageTitle');
+  if (titleEl) updates.pageTitle = titleEl.value;
+
+  if (hasHero) {
+    const initEl = document.getElementById('ef-initials');
+    if (initEl) updates.initials = initEl.value;
+    const subEl = document.getElementById('ef-heroSubtitle');
+    if (subEl) updates.heroSubtitle = subEl.value;
+  }
+
+  // Collect dynamic fields
+  updates.fields = {};
+  document.querySelectorAll('[id^="ef-"]').forEach(el => {
+    const rawId = el.id.slice(3); // remove "ef-"
+    if (['name','pageTitle','initials','heroSubtitle'].includes(rawId)) return;
+    updates.fields[rawId] = el.value;
+  });
+
+  try {
+    await api('PUT', `/api/doctors/${slug}`, updates);
+    // Refresh cache
+    const idx = doctors.findIndex(d => d.slug === slug);
+    if (idx !== -1) {
+      const fresh = await api('GET', `/api/doctors/${slug}`);
+      doctors[idx] = fresh;
+    }
+    toast('Изменения сохранены ✓');
+  } catch(e) {
+    toast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+// ─── Add doctor ───────────────────────────────────────────────────────────────
+function updateNewSlugPreview() {
+  const v = document.getElementById('new-slug').value;
+  document.getElementById('new-slug-preview').textContent = v ? `Файл: doctor-${v}.html` : 'Файл: doctor-???.html';
+}
+
+async function createDoctor() {
+  const slug      = document.getElementById('new-slug').value.trim();
+  const name      = document.getElementById('new-name').value.trim();
+  const initials_  = document.getElementById('new-initials').value.trim();
+  const heroSub   = document.getElementById('new-hero-subtitle').value.trim();
+  const addToIdx  = document.getElementById('new-add-to-index').checked;
+  const cardSpec  = document.getElementById('new-card-spec').value.trim();
+
+  if (!slug)  { toast('Введите slug', 'error'); return; }
+  if (!name)  { toast('Введите имя врача', 'error'); return; }
+
+  const fields = {};
+  const dolzhnost = document.getElementById('new-f-dolzhnost').value.trim();
+  const spec      = document.getElementById('new-f-spec').value.trim();
+  const stazh     = document.getElementById('new-f-stazh').value.trim();
+  const mesto     = document.getElementById('new-f-mesto').value.trim();
+  const edu       = document.getElementById('new-f-edu').value.trim();
+  const category  = document.getElementById('new-f-category').value.trim();
+
+  if (dolzhnost) fields['Должность']         = dolzhnost;
+  if (spec)      fields['Специализация']      = spec;
+  if (stazh)     fields['Общий стаж работы']  = stazh;
+  if (mesto)     fields['Место работы']       = mesto;
+  if (edu)       fields['Образование']        = edu;
+  if (category)  fields['Учетная статья']     = category;
+
+  try {
+    await api('POST', '/api/doctors', {
+      slug, name, initials: initials_, heroSubtitle: heroSub,
+      pageTitle: `${name} — ${dolzhnost || 'Врач-стоматолог'}`,
+      fields
+    });
+
+    if (addToIdx) {
+      await api('POST', '/api/index-cards', {
+        slug, name,
+        spec: cardSpec || dolzhnost || spec || 'Врач',
+        initials: initials_,
+        noPhoto: true
+      });
+    }
+
+    toast('Врач создан ✓');
+    await fetchDoctors();
+    openEdit(slug);
+  } catch(e) {
+    toast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+function openDeleteModal(slug) {
+  pendingDeleteSlug = slug;
+  document.getElementById('delete-slug-label').textContent = `doctor-${slug}.html`;
+  document.getElementById('delete-modal').classList.add('open');
+}
+function closeDeleteModal() {
+  pendingDeleteSlug = null;
+  document.getElementById('delete-modal').classList.remove('open');
+}
+async function confirmDelete() {
+  if (!pendingDeleteSlug) return;
+  const slug = pendingDeleteSlug;
+  closeDeleteModal();
+  try {
+    await api('DELETE', `/api/doctors/${slug}`);
+    doctors = doctors.filter(d => d.slug !== slug);
+    renderDoctorTable(doctors);
+    toast(`doctor-${slug}.html удалён`);
+  } catch(e) {
+    toast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+// ─── Index page ───────────────────────────────────────────────────────────────
+async function loadIndexPage() {
+  try {
+    const meta = await api('GET', '/api/index-meta');
+    document.getElementById('meta-name').value = meta.clinicName;
+    document.getElementById('meta-sub').value  = meta.clinicSub;
+  } catch(e) { /* ignore */ }
+
+  document.getElementById('index-cards-wrap').innerHTML =
+    `<div class="loading-wrap"><div class="spinner"></div><span>Загрузка…</span></div>`;
+  try {
+    const cards = await api('GET', '/api/index-cards');
+    renderIndexCards(cards);
+  } catch(e) {
+    document.getElementById('index-cards-wrap').innerHTML =
+      `<div class="empty-state"><div class="ei">⚠</div><p>${e.message}</p></div>`;
+  }
+}
+
+function renderIndexCards(cards) {
+  document.getElementById('index-cards-wrap').innerHTML = `
+    <table class="index-cards-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Slug</th>
+          <th>Инициалы</th>
+          <th>Имя</th>
+          <th>Специализация</th>
+          <th>Без фото</th>
+          <th>Действие</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${cards.map((c, i) => `
+          <tr id="ic-row-${c.slug}">
+            <td style="color:var(--muted); font-size:12px;">${i+1}</td>
+            <td style="font-size:12px; color:var(--muted); white-space:nowrap;">${c.slug}</td>
+            <td><input id="ic-init-${c.slug}" value="${esc(c.initials)}" style="width:60px;"></td>
+            <td><input id="ic-name-${c.slug}" value="${esc(c.name)}"></td>
+            <td><input id="ic-spec-${c.slug}" value="${esc(c.spec)}"></td>
+            <td>
+              <label class="toggle" title="Без фото (жёлтый индикатор)">
+                <input type="checkbox" id="ic-np-${c.slug}" ${c.noPhoto ? 'checked' : ''}>
+                <span class="toggle-slider"></span>
+              </label>
+            </td>
+            <td>
+              <button class="btn btn-primary btn-sm" onclick="saveIndexCard('${c.slug}')">Сохранить</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+async function saveIndexMeta() {
+  try {
+    await api('PUT', '/api/index-meta', {
+      clinicName: document.getElementById('meta-name').value,
+      clinicSub:  document.getElementById('meta-sub').value
+    });
+    toast('Название клиники сохранено ✓');
+  } catch(e) {
+    toast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function saveIndexCard(slug) {
+  const name     = document.getElementById(`ic-name-${slug}`).value;
+  const spec     = document.getElementById(`ic-spec-${slug}`).value;
+  const initials_ = document.getElementById(`ic-init-${slug}`).value;
+  const noPhoto  = document.getElementById(`ic-np-${slug}`).checked;
+  try {
+    await api('PUT', `/api/index-cards/${slug}`, { name, spec, initials: initials_, noPhoto });
+    toast(`Карточка «${slug}» сохранена ✓`);
+  } catch(e) {
+    toast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function initials(name) {
+  if (!name) return '??';
+  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Close modal on overlay click
+document.getElementById('delete-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDeleteModal();
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadDashboard();
+</script>
+</body>
+</html>

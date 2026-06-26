@@ -1,0 +1,12 @@
+{
+  "name": "sadaf-dental-admin",
+  "version": "1.0.0",
+  "description": "Admin panel for Sadaf Dental Clinic website",
+  "scripts": {
+    "admin": "node admin-server.js",
+    "start": "node admin-server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

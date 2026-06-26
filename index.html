@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sadaf Dental Clinic — Наши врачи</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue-dark: #0D3B6E;
+    --blue-mid: #1B5EA6;
+    --accent: #2ABFBF;
+    --white: #ffffff;
+    --gray-100: #F5F7FA;
+    --gray-200: #E8ECF2;
+    --gray-500: #7A8799;
+    --gray-900: #1A2230;
+  }
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-900);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 0 0 48px;
+  }
+  .page { width: 100%; max-width: 480px; background: var(--white); min-height: 100vh; }
+
+  /* Header */
+  .header {
+    background: var(--blue-dark);
+    padding: 48px 28px 64px;
+    position: relative;
+    text-align: center;
+    overflow: hidden;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 40px;
+    background: var(--white);
+    border-radius: 32px 32px 0 0;
+  }
+  .header-circle { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.05); }
+  .header-circle.c1 { width: 220px; height: 220px; top: -70px; right: -70px; }
+  .header-circle.c2 { width: 130px; height: 130px; bottom: 20px; left: -40px; }
+  .clinic-logo {
+    width: 64px; height: 64px; border-radius: 16px;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+    font-size: 28px;
+    position: relative; z-index: 1;
+  }
+  .clinic-name {
+    color: var(--white);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    position: relative; z-index: 1;
+  }
+  .clinic-sub {
+    color: rgba(255,255,255,0.65);
+    font-size: 13px;
+    margin-top: 6px;
+    position: relative; z-index: 1;
+  }
+
+  /* Search */
+  .search-wrap {
+    padding: 20px 20px 8px;
+  }
+  .search-input {
+    width: 100%;
+    padding: 12px 16px 12px 42px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    color: var(--gray-900);
+    background: var(--gray-100) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='7' stroke='%237A8799' stroke-width='2'/%3E%3Cpath d='M20 20l-3-3' stroke='%237A8799' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat 14px center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+
+  /* Count */
+  .count-label {
+    padding: 4px 20px 12px;
+    font-size: 12px;
+    color: var(--gray-500);
+  }
+
+  /* Doctor list */
+  .doctor-list {
+    padding: 0 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .doctor-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 14px;
+    border-radius: 14px;
+    background: var(--white);
+    border: 1.5px solid var(--gray-200);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  }
+  .doctor-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 4px 16px rgba(42,191,191,0.12);
+    transform: translateY(-1px);
+  }
+  .avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue-mid), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+    flex-shrink: 0;
+    letter-spacing: -0.5px;
+  }
+  .doctor-info { flex: 1; min-width: 0; }
+  .doctor-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-900);
+    line-height: 1.3;
+    margin-bottom: 3px;
+  }
+  .doctor-spec {
+    font-size: 12px;
+    color: var(--gray-500);
+  }
+  .arrow {
+    color: var(--accent);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  /* No-photo indicator */
+  .no-photo {
+    border-left: 4px solid #f59e0b;
+  }
+  .no-photo .avatar {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--gray-500);
+    font-size: 14px;
+    display: none;
+  }
+
+  .footer {
+    text-align: center;
+    padding: 28px 20px 0;
+    font-size: 12px;
+    color: var(--gray-500);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="header-circle c1"></div>
+    <div class="header-circle c2"></div>
+    <div class="clinic-logo">🦷</div>
+    <div class="clinic-name">Sadaf Dental Clinic</div>
+    <div class="clinic-sub">Наши специалисты — Ташкент</div>
+  </div>
+
+  <div class="search-wrap">
+    <input class="search-input" type="text" placeholder="Поиск по имени или специализации…" id="search" oninput="filterDoctors()">
+  </div>
+  <div class="count-label" id="count">19 врачей</div>
+
+  <div class="doctor-list" id="list">
+    <a class="doctor-card" href="doctor-abdurazakova.html">
+      <div class="avatar">АД</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Абдуразакова Динара Еркиновна</div>
+        <div class="doctor-spec">Врач-стоматолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-akhmedov.html">
+      <div class="avatar">АЭ</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Ахмедов Элмур Шухратович</div>
+        <div class="doctor-spec">Врач-терапевт</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-asilbekova.html">
+      <div class="avatar">АН</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Асилбекова Нарходат Отабек кизи</div>
+        <div class="doctor-spec">Врач</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-askarkhodzhaeva.html">
+      <div class="avatar">АН</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Аскарходжаева Наргиза Мирсобитовна</div>
+        <div class="doctor-spec">Врач-стоматолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-asrorkhuzhaev.html">
+      <div class="avatar">АС</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Асрорходжаев Саиджамол Абдурахимович</div>
+        <div class="doctor-spec">Врач-стоматолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-bakhikhanov.html">
+      <div class="avatar">БХ</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Бакиханов Хайруллахон Камилович</div>
+        <div class="doctor-spec">Врач-стоматолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-dzhamalova.html">
+      <div class="avatar">ДЗ</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Джамалова Зульфия Бахоудиновна</div>
+        <div class="doctor-spec">Врач-терапевт-стоматолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card no-photo" href="doctor-ganiev.html">
+      <div class="avatar">ГИ</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Ганиев Илхон Мураевич</div>
+        <div class="doctor-spec">Врач-ортопед</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card no-photo" href="doctor-gurbov.html">
+      <div class="avatar">ГС</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Гурбов С. С.</div>
+        <div class="doctor-spec">Ортопед-терапевт</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-ibragimova.html">
+      <div class="avatar">ИЭ</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Ибрагимова Элеонора Владировна</div>
+        <div class="doctor-spec">Врач-стоматолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-kadyrova.html">
+      <div class="avatar">КД</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Кадырова Дильноза Сайфуллаевна</div>
+        <div class="doctor-spec">Врач-стоматолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-maksudkhodzhaeva.html">
+      <div class="avatar">МД</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Максудходжаева Динара Ботировна</div>
+        <div class="doctor-spec">Гигиенист</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-mayusupov.html">
+      <div class="avatar">МЭ</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Маюсупов Эрадж Ташмухамедович</div>
+        <div class="doctor-spec">Врач-стоматолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-mukimov.html">
+      <div class="avatar">МИ</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Мукимов Икром Илхомович</div>
+        <div class="doctor-spec">Врач-стоматолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card no-photo" href="doctor-nuriddinov.html">
+      <div class="avatar">НМ</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Нуриддинов Мехриддин Нуриддин угли</div>
+        <div class="doctor-spec">Врач</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card no-photo" href="doctor-nurkhozhaev.html">
+      <div class="avatar">НС</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Нурхожаев Самандар Алимжонович</div>
+        <div class="doctor-spec">Ведущий специалист</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-rafikova.html">
+      <div class="avatar">РД</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Рафикова Дильшода Равшановна</div>
+        <div class="doctor-spec">Врач-стоматолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-shokirov.html">
+      <div class="avatar">ШШ</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Шокиров Шохрух Толихбекович</div>
+        <div class="doctor-spec">Хирург-стоматолог, хирург-имплантолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+    <a class="doctor-card" href="doctor-tsesko.html">
+      <div class="avatar">ЦТ</div>
+      <div class="doctor-info">
+        <div class="doctor-name">Цеско Татьяна Григорьевна</div>
+        <div class="doctor-spec">Врач-стоматолог</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+  </div>
+
+  <div class="empty" id="empty">Врачи не найдены</div>
+  <p class="footer">Sadaf Dental Clinic — Ташкент</p>
+</div>
+
+<script>
+function filterDoctors() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const cards = document.querySelectorAll('.doctor-card');
+  let visible = 0;
+  cards.forEach(card => {
+    const text = card.innerText.toLowerCase();
+    const show = text.includes(q);
+    card.style.display = show ? 'flex' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('count').textContent = visible + (visible === 1 ? ' врач' : visible < 5 ? ' врача' : ' врачей');
+  document.getElementById('empty').style.display = visible === 0 ? 'block' : 'none';
+}
+</script>
+</body>
+</html>
