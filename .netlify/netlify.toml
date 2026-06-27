@@ -1,14 +1,15 @@
+functionsDirectory = "D:\\Downloads\\doctorshtml\\netlify\\functions"
+functionsDirectoryOrigin = "config"
+redirectsOrigin = "config"
 plugins = []
 headers = []
-redirects = []
-
-[functions]
-
-[functions."*"]
 
 [build]
-publish = "D:\\Downloads\\doctorshtml"
-publishOrigin = "default"
+publish = "D:\\Downloads\\doctorshtml\\dist"
+publishOrigin = "config"
+commandOrigin = "config"
+command = "node build.js"
+functions = "D:\\Downloads\\doctorshtml\\netlify\\functions"
 
 [build.environment]
 
@@ -23,3 +24,43 @@ publishOrigin = "default"
 [build.processing.js]
 
 [build.services]
+
+[functions]
+
+[functions."*"]
+
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/api"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/admin"
+to = "/admin.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 404.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
