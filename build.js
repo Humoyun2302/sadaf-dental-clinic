@@ -56,11 +56,20 @@ function updateDoctorHtml(html, doc) {
   if (doc.fields) {
     for (const [label, value] of Object.entries(doc.fields)) {
       const esc = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const rx  = new RegExp(
-        `(<p class="info-label">${esc}<\\/p>\\s*<p class="info-value"[^>]*>)[\\s\\S]*?(<\\/p>)`,
-        'g'
-      );
-      html = html.replace(rx, `$1${formatFieldValue(value)}$2`);
+      if (!value || !value.trim()) {
+        // Remove the entire info-card if value is empty
+        const rxCard = new RegExp(
+          `\\s*<div class="info-card[^"]*">\\s*<p class="info-label">${esc}<\\/p>[\\s\\S]*?<\\/div>`,
+          'g'
+        );
+        html = html.replace(rxCard, '');
+      } else {
+        const rx = new RegExp(
+          `(<p class="info-label">${esc}<\\/p>\\s*<p class="info-value"[^>]*>)[\\s\\S]*?(<\\/p>)`,
+          'g'
+        );
+        html = html.replace(rx, `$1${formatFieldValue(value)}$2`);
+      }
     }
   }
   return html;
